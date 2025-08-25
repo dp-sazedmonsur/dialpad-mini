@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,7 +108,8 @@ const Login = () => {
               <p className="text-sm text-muted-foreground text-center">
                 <span className="font-medium">Demo Credentials:</span><br />
                 Email: demo@dialpad.com<br />
-                Password: password123
+                Password: password123<br />
+                <Link to="/" className="text-primary hover:underline mt-2 block">← Back to Homepage</Link>
               </p>
             </div>
           </CardContent>
