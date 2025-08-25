@@ -1,0 +1,77 @@
+name: Auto Generate & Run Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install deps
+        run: |
+          pip install pytest playwright requests pyyaml
+          playwright install chromium
+
+      - name: Extract Jira ID
+        id: jira
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "JIRA_ID=$(echo $TITLE | grep -oE 'DP-[0-9]+')" >> $GITHUB_ENV
+
+      - name: Fetch PR Diff
+        run: gh pr diff ${{ github.event.pull_request.number }} > pr.diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Fetch Jira Spec
+        run: python .github/scripts/fetch_jira.py $JIRA_ID > jira.json
+        env:
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          ATLASSIAN_SITE: ${{ secrets.ATLASSIAN_SITE }}
+
+      - name: Generate Tests via Claude MCP
+        run: python .github/scripts/generate_tests.py pr.diff jira.json tests/generated/test_${{ env.JIRA_ID }}.py
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+
+      - name: Commit Generated Tests
+        run: |
+          git config user.name "ai-bot"
+          git config user.email "ai-bot@dialpad.com"
+          git add tests/generated/
+          git commit -m "🤖 Add AI-generated tests for $JIRA_ID" || echo "No changes"
+          git push
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  run-tests:
+    needs: generate-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - run: |
+          pip install pytest playwright
+          playwright install chromium
+      - run: pytest -q --disable-warnings --maxfail=1
+      - name: Comment Results
+        run: |
+          if [ $? -eq 0 ]; then
+            gh pr comment ${{ github.event.pull_request.number }} --body "✅ AI-generated tests passed!"
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body "❌ AI-generated tests failed!"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
