@@ -116,7 +116,7 @@ const CallModal = ({ open, onOpenChange }: CallModalProps) => {
           </DialogTitle>
           <DialogDescription>
             {isCallActive 
-              ? "Call in progress - Demo mode" 
+              ? "Calling... - Demo mode" 
               : "Enter a phone number to start a demo call"
             }
           </DialogDescription>
