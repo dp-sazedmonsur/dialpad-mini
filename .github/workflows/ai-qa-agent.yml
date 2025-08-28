@@ -1,7 +1,7 @@
-name: AI QA Agent Test Generator
+name: AI QA Agent (Hardcoded Demo)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # only runs when you click "Run workflow" in Actions tab
 
 jobs:
   generate-tests:
@@ -11,14 +11,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set PR metadata
-        run: |
-          echo PR_NUMBER=3 >> $GITHUB_ENV
-          echo JIRA_ID=DP-154918 >> $GITHUB_ENV
-
-      - name: Call AI QA Agent API
+      - name: Call AI QA Agent API (hardcoded)
         run: |
           mkdir -p generated_tests
+          JIRA_ID="DP-154918"
+          PR_NUMBER="3"
+
           echo "🚀 Calling AI QA Agent with Jira=$JIRA_ID, PR=$PR_NUMBER"
 
           RESPONSE=$(curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
@@ -29,25 +27,25 @@ jobs:
           echo "$RESPONSE"
 
           echo "$RESPONSE" | jq -r '.playwright_test' > generated_tests/test_${JIRA_ID}.py
-          echo "Generated test saved to generated_tests/test_${JIRA_ID}.py"
+          echo "✅ Generated test saved to generated_tests/test_${JIRA_ID}.py"
 
-      - name: Commit generated tests
+      - name: Commit generated test
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="ai-tests/manual-test"
+          BRANCH="ai-tests/demo-hardcoded"
           git checkout -b "$BRANCH"
           git add generated_tests/
-          git commit -m "AI QA Agent: Generated tests for Jira $JIRA_ID (PR #$PR_NUMBER)" || echo "No changes to commit"
+          git commit -m "AI QA Agent: Generated tests (hardcoded DP-154918, PR #3)" || echo "No changes to commit"
           git push origin "$BRANCH" || echo "Branch push skipped"
 
-      - name: Open companion PR
+      - name: Open PR
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: "ai-tests/manual-test"
+          branch: "ai-tests/demo-hardcoded"
           base: main
-          title: "AI QA Agent: Tests for Jira ${{ env.JIRA_ID }}"
+          title: "AI QA Agent: Tests for DP-154918 (PR #3)"
           body: |
-            This PR contains auto-generated Playwright tests for Jira **${{ env.JIRA_ID }}**.
-            Generated from original PR #${{ env.PR_NUMBER }}.
+            This PR contains auto-generated Playwright tests for Jira **DP-154918**.
+            Generated from hardcoded PR #3.
