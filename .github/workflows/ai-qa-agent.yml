@@ -1,7 +1,7 @@
-name: AI QA Agent Test Generator (Manual Test)
+name: AI QA Agent Test Generator
 
 on:
-  workflow_dispatch:   # only manual run
+  workflow_dispatch:
 
 jobs:
   generate-tests:
@@ -13,8 +13,8 @@ jobs:
 
       - name: Set PR metadata
         run: |
-          echo "JIRA_ID=DP-154918" >> $GITHUB_ENV
-          echo "PR_NUMBER=3" >> $GITHUB_ENV
+          echo PR_NUMBER=3 >> $GITHUB_ENV
+          echo JIRA_ID=DP-154918 >> $GITHUB_ENV
 
       - name: Call AI QA Agent API
         run: |
