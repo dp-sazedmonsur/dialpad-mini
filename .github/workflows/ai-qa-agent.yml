@@ -5,15 +5,12 @@ on:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
+      jira_id:
+        description: "Jira ID (e.g. DP-123)"
+        required: true
       pr_number:
-        description: "PR number (manual run)"
-        required: false
-      pr_title:
-        description: "PR title (manual run)"
-        required: false
-      pr_body:
-        description: "PR body (manual run)"
-        required: false
+        description: "PR number"
+        required: true
 
 jobs:
   generate-tests:
@@ -23,69 +20,41 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Extract PR metadata
-        id: pr
-        run: |
-          echo "PR_NUMBER=${{ github.event.pull_request.number || github.event.inputs.pr_number || '0' }}" >> $GITHUB_ENV
-          
-          {
-            echo "PR_TITLE<<EOF"
-            echo "${{ github.event.pull_request.title || github.event.inputs.pr_title || 'Manual Trigger' }}"
-            echo "EOF"
-          } >> $GITHUB_ENV
-          
-          {
-            echo "PR_BODY<<EOF"
-            echo "${{ github.event.pull_request.body || github.event.inputs.pr_body || 'Manual run, no PR body' }}"
-            echo "EOF"
-          } >> $GITHUB_ENV
-
-      - name: Derive Jira ID from PR
-        id: jira
-        run: |
-          JIRA_ID=$(echo "${{ env.PR_TITLE }} ${{ env.PR_BODY }}" | grep -oE 'DP-[0-9]+' | head -n1 || true)
-          if [ -z "$JIRA_ID" ]; then
-            echo "⚠️ No Jira ID found in PR title/body, defaulting to DP-0000"
-            JIRA_ID="DP-0000"
-          fi
-          echo "JIRA_ID=$JIRA_ID" >> $GITHUB_ENV
-          echo "Found Jira ID: $JIRA_ID"
-
       - name: Call AI QA Agent API
         run: |
           mkdir -p generated_tests
-          echo "Calling AI QA Agent with Jira=${{ env.JIRA_ID }}, PR=${{ env.PR_NUMBER }}"
-          
+          JIRA_ID="${{ github.event.inputs.jira_id || 'DP-154918' }}"
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number || '3' }}"
+
+          echo "🚀 Calling AI QA Agent with Jira=$JIRA_ID, PR=$PR_NUMBER"
+
           RESPONSE=$(curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
             -H "Content-Type: application/json" \
-            -d "{\"jira_id\": \"${{ env.JIRA_ID }}\", \"pr_number\": ${{ env.PR_NUMBER }}}")
+            -d "{\"jira_id\": \"$JIRA_ID\", \"pr_number\": $PR_NUMBER}")
 
           echo "=== Raw API Response ==="
           echo "$RESPONSE"
 
-          echo "$RESPONSE" | jq -r '.playwright_test' > generated_tests/test_${{ env.JIRA_ID }}.py
-
-          echo "✅ Generated test saved to generated_tests/test_${{ env.JIRA_ID }}.py"
+          echo "$RESPONSE" | jq -r '.playwright_test' > generated_tests/test_${JIRA_ID}.py
+          echo "✅ Generated test saved to generated_tests/test_${JIRA_ID}.py"
 
       - name: Commit generated tests
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
+          BRANCH="ai-tests/${{ github.run_id }}"
+          git checkout -b "$BRANCH"
           git add generated_tests/
-          git commit -m "AI QA Agent: Generated tests for ${{ env.JIRA_ID }} (PR #${{ env.PR_NUMBER }})" || echo "No changes to commit"
-          git push origin "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}" || echo "Branch push skipped (maybe already exists)"
+          git commit -m "AI QA Agent: Generated tests for PR #${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          git push origin "$BRANCH"
 
       - name: Open companion PR
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
+          branch: "ai-tests/${{ github.run_id }}"
           base: main
-          title: "AI QA Agent: Tests for ${{ env.JIRA_ID }}"
+          title: "AI QA Agent: Tests for Jira ${{ github.event.inputs.jira_id }}"
           body: |
-            This PR contains auto-generated Playwright tests for Jira **${{ env.JIRA_ID }}**.
-            Generated from original PR #${{ env.PR_NUMBER }}.
+            This PR contains auto-generated Playwright tests for Jira **${{ github.event.inputs.jira_id }}**.
+            Generated from original PR #${{ github.event.pull_request.number || github.event.inputs.pr_number }}.
