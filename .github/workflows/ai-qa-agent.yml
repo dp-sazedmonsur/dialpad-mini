@@ -41,7 +41,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH="ai-tests/demo-${{ github.run_id }}"
           git checkout -b "$BRANCH"
-          git add -f generated_tests/
+          git add -f tests/generated/
           git commit -m "AI QA Agent: Generated tests for Jira DP-154918 (PR #3)" || echo "No changes to commit"
           git push origin "$BRANCH" || echo "Branch push skipped"
 
