@@ -12,6 +12,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Extract PR metadata
         id: pr
         run: |
@@ -22,7 +25,6 @@ jobs:
       - name: Derive Jira ID from PR
         id: jira
         run: |
-          # Example: assume Jira ID looks like DP-123 in PR title or body
           JIRA_ID=$(echo "${{ env.PR_TITLE }} ${{ env.PR_BODY }}" | grep -oE 'DP-[0-9]+' | head -n1 || true)
           if [ -z "$JIRA_ID" ]; then
             echo "❌ No Jira ID found in PR title/body"
@@ -31,15 +33,15 @@ jobs:
           echo "JIRA_ID=$JIRA_ID" >> $GITHUB_ENV
           echo "Found Jira ID: $JIRA_ID"
 
-      - name: Call AI QA Agent API
-        id: call_agent
+      - name: Fetch Jira + PR with AI Agent
         run: |
-          RESPONSE=$(curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
+          mkdir -p generated_tests
+          curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
             -H "Content-Type: application/json" \
-            -d "{\"jira_id\": \"${{ env.JIRA_ID }}\", \"pr_number\": ${{ env.PR_NUMBER }}}")
-          
-          echo "$RESPONSE" > generated_tests/test_${{ env.JIRA_ID }}.py
-          echo "Generated test saved to generated_tests/test_${{ env.JIRA_ID }}.py"
+            -d "{\"jira_id\": \"${{ env.JIRA_ID }}\", \"pr_number\": ${{ env.PR_NUMBER }}}" \
+            | jq -r '.playwright_test' > generated_tests/test_${{ env.JIRA_ID }}.py
+
+          echo "✅ Generated test saved to generated_tests/test_${{ env.JIRA_ID }}.py"
 
       - name: Commit generated tests
         run: |
