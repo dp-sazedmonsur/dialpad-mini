@@ -3,6 +3,7 @@ name: AI QA Agent Test Generator
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:   # allows manual trigger from Actions tab
 
 jobs:
   generate-tests:
@@ -33,13 +34,19 @@ jobs:
           echo "JIRA_ID=$JIRA_ID" >> $GITHUB_ENV
           echo "Found Jira ID: $JIRA_ID"
 
-      - name: Fetch Jira + PR with AI Agent
+      - name: Call AI QA Agent API
         run: |
           mkdir -p generated_tests
-          curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
+          echo "Calling AI QA Agent with Jira=${{ env.JIRA_ID }}, PR=${{ env.PR_NUMBER }}"
+          
+          RESPONSE=$(curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
             -H "Content-Type: application/json" \
-            -d "{\"jira_id\": \"${{ env.JIRA_ID }}\", \"pr_number\": ${{ env.PR_NUMBER }}}" \
-            | jq -r '.playwright_test' > generated_tests/test_${{ env.JIRA_ID }}.py
+            -d "{\"jira_id\": \"${{ env.JIRA_ID }}\", \"pr_number\": ${{ env.PR_NUMBER }}}")
+
+          echo "=== Raw API Response ==="
+          echo "$RESPONSE"
+
+          echo "$RESPONSE" | jq -r '.playwright_test' > generated_tests/test_${{ env.JIRA_ID }}.py
 
           echo "✅ Generated test saved to generated_tests/test_${{ env.JIRA_ID }}.py"
 
@@ -49,8 +56,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
           git add generated_tests/
-          git commit -m "AI QA Agent: Generated tests for ${{ env.JIRA_ID }} (PR #${{ env.PR_NUMBER }})"
-          git push origin "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
+          git commit -m "AI QA Agent: Generated tests for ${{ env.JIRA_ID }} (PR #${{ env.PR_NUMBER }})" || echo "No changes to commit"
+          git push origin "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}" || echo "Branch push skipped (maybe already exists)"
 
       - name: Open companion PR
         uses: peter-evans/create-pull-request@v5
