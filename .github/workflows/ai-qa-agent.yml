@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Call AI QA Agent API (hardcoded)
+      - name: Call AI QA Agent API
         run: |
           mkdir -p generated_tests
           JIRA_ID="DP-154918"
@@ -37,19 +37,20 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="ai-tests/demo-hardcoded"
+          BRANCH="ai-tests/demo-${{ github.run_id }}"
           git checkout -b "$BRANCH"
           git add generated_tests/
-          git commit -m "AI QA Agent: Generated tests (hardcoded DP-154918, PR #3)" || echo "No changes to commit"
+          git commit -m "AI QA Agent: Generated tests (DP-154918, PR #3)" || echo "No changes to commit"
           git push origin "$BRANCH" || echo "Branch push skipped"
 
       - name: Open PR
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: "ai-tests/demo-hardcoded"
+          branch: "ai-tests/demo-${{ github.run_id }}"
           base: main
           title: "AI QA Agent: Tests for DP-154918 (PR #3)"
           body: |
             This PR contains auto-generated Playwright tests for Jira **DP-154918**.
-            Generated from hardcoded PR #3.
+            Generated from PR #3.
+          always-create: true
