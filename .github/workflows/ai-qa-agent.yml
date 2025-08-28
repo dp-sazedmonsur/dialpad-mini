@@ -3,7 +3,17 @@ name: AI QA Agent Test Generator
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  workflow_dispatch:   # allows manual trigger from Actions tab
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number (manual run)"
+        required: false
+      pr_title:
+        description: "PR title (manual run)"
+        required: false
+      pr_body:
+        description: "PR body (manual run)"
+        required: false
 
 jobs:
   generate-tests:
@@ -19,12 +29,12 @@ jobs:
       - name: Extract PR metadata
         id: pr
         run: |
-          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "PR_NUMBER=${{ github.event.pull_request.number || github.event.inputs.pr_number || '0' }}" >> $GITHUB_ENV
           echo "PR_TITLE<<EOF" >> $GITHUB_ENV
-          echo "${{ github.event.pull_request.title }}" >> $GITHUB_ENV
+          echo "${{ github.event.pull_request.title || github.event.inputs.pr_title || 'Manual Trigger' }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
           echo "PR_BODY<<EOF" >> $GITHUB_ENV
-          echo "${{ github.event.pull_request.body }}" >> $GITHUB_ENV
+          echo "${{ github.event.pull_request.body || github.event.inputs.pr_body || 'Manual run, no PR body' }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Derive Jira ID from PR
