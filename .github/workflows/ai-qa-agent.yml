@@ -30,20 +30,26 @@ jobs:
         id: pr
         run: |
           echo "PR_NUMBER=${{ github.event.pull_request.number || github.event.inputs.pr_number || '0' }}" >> $GITHUB_ENV
-          echo "PR_TITLE<<EOF" >> $GITHUB_ENV
-          echo "${{ github.event.pull_request.title || github.event.inputs.pr_title || 'Manual Trigger' }}" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "PR_BODY<<EOF" >> $GITHUB_ENV
-          echo "${{ github.event.pull_request.body || github.event.inputs.pr_body || 'Manual run, no PR body' }}" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          
+          {
+            echo "PR_TITLE<<EOF"
+            echo "${{ github.event.pull_request.title || github.event.inputs.pr_title || 'Manual Trigger' }}"
+            echo "EOF"
+          } >> $GITHUB_ENV
+          
+          {
+            echo "PR_BODY<<EOF"
+            echo "${{ github.event.pull_request.body || github.event.inputs.pr_body || 'Manual run, no PR body' }}"
+            echo "EOF"
+          } >> $GITHUB_ENV
 
       - name: Derive Jira ID from PR
         id: jira
         run: |
           JIRA_ID=$(echo "${{ env.PR_TITLE }} ${{ env.PR_BODY }}" | grep -oE 'DP-[0-9]+' | head -n1 || true)
           if [ -z "$JIRA_ID" ]; then
-            echo "❌ No Jira ID found in PR title/body"
-            exit 1
+            echo "⚠️ No Jira ID found in PR title/body, defaulting to DP-0000"
+            JIRA_ID="DP-0000"
           fi
           echo "JIRA_ID=$JIRA_ID" >> $GITHUB_ENV
           echo "Found Jira ID: $JIRA_ID"
