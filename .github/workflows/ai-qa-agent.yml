@@ -31,6 +31,8 @@ jobs:
           echo "$RESPONSE"
 
           echo "$RESPONSE" | jq -r '.playwright_test' > generated_tests/test_${JIRA_ID}.py
+          CLEANED=$(echo "$RESPONSE" | jq -r '.playwright_test' | sed 's/^```python//;s/^```//;s/```$//')
+          echo "$CLEANED" > generated_tests/test_${JIRA_ID}.py
           echo "✅ Generated test saved to generated_tests/test_${JIRA_ID}.py"
 
       - name: Commit generated tests
