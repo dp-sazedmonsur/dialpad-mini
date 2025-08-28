@@ -56,4 +56,3 @@ jobs:
           body: |
             This PR contains auto-generated Playwright tests for Jira **DP-154918**.
             Generated from PR #3.
-          always-create: true
