@@ -1,7 +1,11 @@
-name: AI QA Agent (Hardcoded Demo)
+name: AI QA Agent
 
 on:
   workflow_dispatch:  # only runs when you click "Run workflow" in Actions tab
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   generate-tests:
@@ -29,7 +33,7 @@ jobs:
           echo "$RESPONSE" | jq -r '.playwright_test' > generated_tests/test_${JIRA_ID}.py
           echo "✅ Generated test saved to generated_tests/test_${JIRA_ID}.py"
 
-      - name: Commit generated test
+      - name: Commit generated tests
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
