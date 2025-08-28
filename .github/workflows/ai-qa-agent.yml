@@ -49,7 +49,7 @@ jobs:
       - name: Open PR
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           branch: "ai-tests/demo-${{ github.run_id }}"
           base: main
           title: "AI QA Agent: Tests for DP-154918 (PR #3)"
