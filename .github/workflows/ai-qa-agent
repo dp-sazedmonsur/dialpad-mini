@@ -1,0 +1,62 @@
+name: AI QA Agent Test Generator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Extract PR metadata
+        id: pr
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "PR_TITLE=${{ github.event.pull_request.title }}" >> $GITHUB_ENV
+          echo "PR_BODY=${{ github.event.pull_request.body }}" >> $GITHUB_ENV
+
+      - name: Derive Jira ID from PR
+        id: jira
+        run: |
+          # Example: assume Jira ID looks like DP-123 in PR title or body
+          JIRA_ID=$(echo "${{ env.PR_TITLE }} ${{ env.PR_BODY }}" | grep -oE 'DP-[0-9]+' | head -n1 || true)
+          if [ -z "$JIRA_ID" ]; then
+            echo "❌ No Jira ID found in PR title/body"
+            exit 1
+          fi
+          echo "JIRA_ID=$JIRA_ID" >> $GITHUB_ENV
+          echo "Found Jira ID: $JIRA_ID"
+
+      - name: Call AI QA Agent API
+        id: call_agent
+        run: |
+          RESPONSE=$(curl -s -X POST "https://ai-qa-agent-573259940627.us-central1.run.app/generate-tests" \
+            -H "Content-Type: application/json" \
+            -d "{\"jira_id\": \"${{ env.JIRA_ID }}\", \"pr_number\": ${{ env.PR_NUMBER }}}")
+          
+          echo "$RESPONSE" > generated_tests/test_${{ env.JIRA_ID }}.py
+          echo "Generated test saved to generated_tests/test_${{ env.JIRA_ID }}.py"
+
+      - name: Commit generated tests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
+          git add generated_tests/
+          git commit -m "AI QA Agent: Generated tests for ${{ env.JIRA_ID }} (PR #${{ env.PR_NUMBER }})"
+          git push origin "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
+
+      - name: Open companion PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "ai-tests/${{ env.JIRA_ID }}-${{ env.PR_NUMBER }}"
+          base: main
+          title: "AI QA Agent: Tests for ${{ env.JIRA_ID }}"
+          body: |
+            This PR contains auto-generated Playwright tests for Jira **${{ env.JIRA_ID }}**.
+            Generated from original PR #${{ env.PR_NUMBER }}.
